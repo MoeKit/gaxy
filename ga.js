@@ -5,7 +5,7 @@
 var fs = require('fs'),
     config = require('./config/newga.json'), //JSON.parse(fs.readFileSync('./config/ga.json')),
     authConfig = require('./ga.json');
-    googleapis = require('googleapis'),
+googleapis = require('googleapis'),
     CLIENT_ID = authConfig.CLIENT_ID,
     CLIENT_SECRET = authConfig.CLIENT_SECRET,
     REDIRECT_URL = authConfig.REDIRECT_URL,
@@ -13,6 +13,7 @@ var fs = require('fs'),
     OAuth2Client = googleapis.OAuth2Client,
     oauth2Client = new OAuth2Client(CLIENT_ID, CLIENT_SECRET, REDIRECT_URL),
     data = {};
+var querystring = require('querystring');
 
 var crypto = require('crypto');
 
@@ -61,15 +62,11 @@ eventEmitter.on('refresh_token', function (option, callback, cacheName) {
 });
 
 function get_raw_data(option, callback) {
-    var querystring = require('querystring');
-    //var cacheName = md5(option);
-    //console.log(cacheName);
-    //console.log(querystring.parse(option));
     // 转换为对象
     if (typeof option !== 'object') {
         option = querystring.parse(option);
     }
-    doFetch(option, callback, 'raw/' + encodeURI(option));
+    doFetch(option, callback, md5(encodeURI(querystring.stringify(option))));
 }
 
 function doFetch(option, callback, cacheName) {
@@ -79,15 +76,8 @@ function doFetch(option, callback, cacheName) {
         option['start-date'] = oneMonthAgo;
         option['end-date'] = now;
     }
-    //option['start-date']='2013-05-01';
-    //option['end-date']='2013-05-24';
-    cacheName = cacheName.split('/')[0] + '/' + md5(cacheName.split('/')[1]) + '.json';
-    console.log(cacheName);
-    var isCacheExists = fs.existsSync('./cache/' + cacheName);
-    console.log(option.filters);
+    var isCacheExists = fs.existsSync('./cache/' + cacheName + '.json');
     if (isCacheExists) {
-        //console.log(option);
-        //console.log(require('querystring').stringify(option));
         console.log('缓存存在');
         // 读取缓存
         var data = require('./cache/' + cacheName);
@@ -96,50 +86,37 @@ function doFetch(option, callback, cacheName) {
         console.log('缓存不存在, to get it');
         googleapis.discover('analytics', 'v3')
             .execute(function (err, client) {
-                if(err){
-                    console.log(err);
+                if (err) {
+                    console.log('error', err);
                     return;
                 }
-                console.log(client);
                 client.analytics.data.ga.get(option)
                     .withAuthClient(oauth2Client)
                     .execute(function (err, data) {
-                        console.log(err);
+                        if (err) {
+                            console.log(err);
+                        }
                         if (err && err['code'] === 401) {
-
                             console.log('授权过期');
                             console.log('expired token');
                             eventEmitter.emit('refresh_token', option, callback, cacheName);
                         } else {
                             console.log('数据到手');
                             var returnData = data;
-                            /*{
-                             total: data.totalsForAllResults,
-                             rows: data.rows
-                             }*/
-                            //console.log(data);
-                            /*if(data===undefined){
-                             doFetch(_option,callback,_cacheName)
-                             }*/
                             if (returnData === undefined) {
                                 callback && callback.call(this, {
                                     rows: []
                                 });
                             } else {
-                                fs.writeFile('./cache/' + cacheName, JSON.stringify(returnData));
+                                fs.writeFile('./cache/' + cacheName + '.json', JSON.stringify(returnData));
                                 callback && callback.call(this, returnData);
                             }
-                            // 写入缓存
-
                         }
                     });
             });
     }
 }
 
-// 62079070 全站数据
-// 61918595  m 站数据
-// 644519 bbs 数据
 module.exports = {
     get_raw_data: get_raw_data
 };
