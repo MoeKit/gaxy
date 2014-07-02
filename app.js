@@ -2,7 +2,7 @@ var express = require('express'),
     app = express(),
     fs = require('fs'),
     http = require('http');
-var server = app.listen(8888);
+var server = app.listen(8877);
 
 /**
  * Removes a module from the cache
