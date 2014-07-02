@@ -1,0 +1,10 @@
+{
+    "name": "seedit",
+    "version": "0.0.1",
+    "main": "app.js",
+    "dependencies": {
+        "express": "3.x",
+        "googleapis": "*",
+        "moment":"*"
+    }
+}
